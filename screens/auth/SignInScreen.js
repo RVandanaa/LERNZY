@@ -53,7 +53,7 @@ export default function SignInScreen({ navigation }) {
             <View style={styles.logoMark}>
               <Text style={styles.logoGlyph}>◈</Text>
             </View>
-            <Text style={styles.brandName}>Vidya</Text>
+            <Text style={styles.brandName}>LERNZY</Text>
             <Text style={styles.tagline}>Your learning companion</Text>
           </View>
 

@@ -11,10 +11,7 @@ import ProfileScreen  from '../screens/main/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
-/**
- * Tab icons — replace Text with your icon library (e.g. lucide-react-native)
- * when ready. Keeping as text labels for now so no extra deps are needed.
- */
+ 
 const TAB_ICONS = {
   Home:     { active: '⌂', inactive: '⌂' },
   Learn:    { active: '◉', inactive: '○' },

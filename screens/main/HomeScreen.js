@@ -101,7 +101,8 @@ function getGreeting() {
 // ─── Main screen ──────────────────────────────────────────
 
 export default function HomeScreen({ navigation }) {
-  const { name, avatar } = useProfileStore();
+  const name   = useProfileStore(s => s.name);
+  const avatar = useProfileStore(s => s.avatar);
   const displayName = name || 'Learner';
   const avatarEmoji = avatar ? {
     owl: '🦉', rocket: '🚀', plant: '🌱', star: '⭐',
@@ -122,9 +123,14 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
   const handleFeaturePress = (id) => {
-    // Navigation to feature screens (future)
-    console.log('Navigate to:', id);
+  const routes = {
+    'ai-tutor':      'AITutor',
+    'math-lab':      'MathTutor',
+    'coding-lab':    'CodingLab',
+    'sign-language': 'SignLanguage',
   };
+  if (routes[id]) navigation.navigate(routes[id]);
+};
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
