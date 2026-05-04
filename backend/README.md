@@ -1,88 +1,114 @@
 # AI Tutor Backend
 
-Production-ready backend for an AI Tutor application with:
-
-- JWT authentication
-- AI answer generation
-- English/Kannada response support
-- Text-to-speech response payloads
-- Sign-language gesture payloads
-- Learning history storage
+Backend API for an AI Tutor application with hardened defaults for security, multilingual answers, caching hooks, SSE streaming, and modular AI providers.
 
 ## Tech Stack
 
 - Node.js + Express.js
 - MongoDB + Mongoose
-- JWT + bcrypt
-- dotenv
+- bcrypt + JWT (short access token + hashed refresh rotation)
+- express-validator + mongo-sanitize
+- Winston logging
+- Optional Redis caching (ioredis)
+- Gemini (Google AI Studio) OR local Ollama (no vendor lock-in to OpenAI)
 
-## Project Structure
+## Quick Start
 
-```
-backend/
-  src/
-    config/
-    controllers/
-    middleware/
-    models/
-    routes/
-    services/
-    utils/
-  docs/
-  .env.example
-  package.json
+1. Install deps:
+
+```bash
+cd backend
+npm install
 ```
 
-## Setup
+2. Configure environment:
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Copy `.env.example` to `.env` and update values.
-3. Start MongoDB locally (or use cloud MongoDB URI).
-4. Start backend:
-   ```bash
-   npm run dev
-   ```
+Copy `.env.example` to `.env` and fill Mongo + secrets + AI keys.
 
-## Environment Variables
+3. Run:
 
-See `.env.example`.
+```bash
+npm run dev
+```
+
+Health check:
+
+- `GET /api/health`
+
+## Environment
+
+See `.env.example` for the full matrix. Highlights:
+
+| Variable | Meaning |
+|---------|---------|
+| `CORS_ORIGINS` | comma-separated frontend origins |
+
+| `GEMINI_API_KEY` | Google AI Studio key (recommended “free-ish” tier) |
+
+| `AI_PROVIDER` | `gemini` or `ollama` |
+
+| `REDIS_URL` | optional caching for `/api/ask` |
+
+| `GOOGLE_TRANSLATE_API_KEY` | optional Kannada polish (`KANNADA_POST_TRANSLATE=true`) |
 
 ## API Endpoints
 
-### 1) Auth
+### Auth
 
 - `POST /api/auth/signup`
 - `POST /api/auth/login`
+- `POST /api/auth/refresh` `{ "refreshToken": "..." }`
+- `POST /api/auth/logout` (Bearer access token required)
 
-### 2) AI Tutor
-
-- `POST /api/ask` (requires Bearer token)
-
-Body:
+Signup/login responses include:
 
 ```json
 {
-  "question": "What is photosynthesis?",
+  "success": true,
+  "message": "...",
+  "data": {
+    "accessToken": "...",
+    "refreshToken": "...",
+    "token": "...",
+    "user": {}
+  },
+  "error": null
+}
+```
+
+`token` mirrors `accessToken` for backwards compatibility with older mobile clients.
+
+### Ask (blocking JSON)
+
+`POST /api/ask`
+
+```json
+{
+  "question": "Explain inertia",
   "language": "kn",
   "outputType": "voice"
 }
 ```
 
-### 3) History
+Requires `Authorization: Bearer <accessToken>`.
 
-- `GET /api/history?limit=20` (requires Bearer token)
+### Ask Streaming (SSE over HTTP)
 
-## Postman Test Examples
+`POST /api/ask/stream` with identical JSON body.
 
-Detailed collection-style request samples are available in:
+- Emits `event: token` chunks and final `event: done` payload.
+- Use `fetch` + `ReadableStream` on RN/web (EventSource lacks auth headers cleanly).
 
-- `docs/postman-examples.md`
+### History (paginated)
 
-## Notes
+`GET /api/history?page=1&limit=20`
 
-- If `OPENAI_API_KEY` is not provided, app automatically uses a safe fallback answer template.
-- `outputType=voice` returns an audio URL payload.
-- `outputType=sign-language` returns structured gesture data for scalable animation integration.
+## Tests
+
+```bash
+npm test
+```
+
+## Postman snippets
+
+See `docs/postman-examples.md`.

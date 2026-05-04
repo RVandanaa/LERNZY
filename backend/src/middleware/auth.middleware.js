@@ -1,5 +1,5 @@
-const jwt = require("jsonwebtoken");
 const User = require("../models/User.model");
+const { verifyAccessToken } = require("../utils/jwt.utils");
 
 const authMiddleware = async (req, res, next) => {
   try {
@@ -8,18 +8,33 @@ const authMiddleware = async (req, res, next) => {
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized. Missing or invalid token."
+        message: "Unauthorized. Missing or invalid token.",
+        data: null,
+        error: { code: "UNAUTHORIZED" }
       });
     }
 
     const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId).select("-password");
+    const decoded = verifyAccessToken(token);
+
+    if (decoded.typ && decoded.typ !== "access") {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized. Invalid token type.",
+        data: null,
+        error: { code: "INVALID_TOKEN_TYPE" }
+      });
+    }
+
+    const userId = decoded.userId || decoded.sub;
+    const user = await User.findById(userId).select("-password");
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized. User no longer exists."
+        message: "Unauthorized. User no longer exists.",
+        data: null,
+        error: { code: "USER_MISSING" }
       });
     }
 
@@ -28,7 +43,9 @@ const authMiddleware = async (req, res, next) => {
   } catch (error) {
     return res.status(401).json({
       success: false,
-      message: "Unauthorized. Token is invalid or expired."
+      message: "Unauthorized. Token is invalid or expired.",
+      data: null,
+      error: { code: "TOKEN_INVALID" }
     });
   }
 };

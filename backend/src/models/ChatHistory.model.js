@@ -51,4 +51,6 @@ const chatHistorySchema = new mongoose.Schema(
   }
 );
 
+chatHistorySchema.index({ userId: 1, createdAt: -1 });
+
 module.exports = mongoose.model("ChatHistory", chatHistorySchema);

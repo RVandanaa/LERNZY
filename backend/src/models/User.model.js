@@ -23,6 +23,14 @@ const userSchema = new mongoose.Schema(
       minlength: 8,
       select: false
     },
+    refreshTokenHash: {
+      type: String,
+      select: false
+    },
+    refreshTokenVersion: {
+      type: Number,
+      default: 0
+    },
     preferredLanguage: {
       type: String,
       enum: ["en", "kn"],

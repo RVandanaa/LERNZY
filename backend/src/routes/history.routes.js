@@ -9,7 +9,10 @@ const router = express.Router();
 router.get(
   "/",
   authMiddleware,
-  [query("limit").optional().isInt({ min: 1, max: 100 })],
+  [
+    query("page").optional().isInt({ min: 1 }),
+    query("limit").optional().isInt({ min: 1, max: 100 })
+  ],
   validateRequest,
   getHistory
 );
