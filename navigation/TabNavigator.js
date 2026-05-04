@@ -5,7 +5,7 @@ import { colors, typography, spacing } from '../theme';
 
 import HomeScreen     from '../screens/main/HomeScreen';
 import LearnScreen    from '../screens/main/LearnScreen';
-import CodeScreen     from '../screens/main/CodeScreen';
+import CodeScreen     from '../screens/main/CodingLabScreen';
 import ProgressScreen from '../screens/main/ProgressScreen';
 import ProfileScreen  from '../screens/main/ProfileScreen';
 
