@@ -10,8 +10,11 @@ import {
   Platform,
   StatusBar,
   Animated,
+  Alert,
 } from "react-native";
 import useProfileStore from "../../store/useProfileStore";
+import { profileLanguageToApi } from "../../utils/languageMap";
+import { askTutor, ApiError } from "../../services/api/http";
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 const T = {
@@ -200,8 +203,8 @@ export default function AiTutorChatScreen() {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, []);
 
-  const sendMessage = useCallback((text) => {
-    const trimmed = (text || input).trim();
+  const sendMessage = useCallback((textOverride) => {
+    const trimmed = ((textOverride != null ? textOverride : input) || "").trim();
     if (!trimmed) return;
 
     const userMsg = {
@@ -215,18 +218,41 @@ export default function AiTutorChatScreen() {
     setIsTyping(true);
     scrollToBottom();
 
-    setTimeout(() => {
-      const aiMsg = {
-        id:   String(nextId.current++),
-        role: "ai",
-        text: getAiReply(trimmed, langLabel),
-        time: now(),
-      };
-      setMessages(prev => [...prev, aiMsg]);
-      setIsTyping(false);
-      scrollToBottom();
-    }, 1600);
-  }, [input, scrollToBottom, langLabel]);
+    const apiLang = profileLanguageToApi(language);
+    askTutor({
+      question: trimmed,
+      language: apiLang,
+      outputType: "text",
+    })
+      .then((data) => {
+        const reply = data?.explanation || "_(No text returned)_";
+        const aiMsg = {
+          id:   String(nextId.current++),
+          role: "ai",
+          text: reply,
+          time: now(),
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+      })
+      .catch((err) => {
+        const msg = err instanceof ApiError ? err.message : "Something went wrong";
+        Alert.alert("Tutor unavailable", msg);
+        const aiMsg = {
+          id:   String(nextId.current++),
+          role: "ai",
+          text:
+            apiLang === "kn"
+              ? `ಕ್ಷಮಿಸಿ, ಈಗ ಉತ್ತರ ಪಡೆಯಲಾಗಲಿಲ್ಲ। (${msg})`
+              : `Sorry — I couldn't reach the tutor right now.\n(${msg})`,
+          time: now(),
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+      })
+      .finally(() => {
+        setIsTyping(false);
+        scrollToBottom();
+      });
+  }, [input, scrollToBottom, language]);
 
   const handleQuickAction = useCallback((action) => {
     const map = {
@@ -323,31 +349,17 @@ export default function AiTutorChatScreen() {
               value={input}
               onChangeText={setInput}
               multiline
-              maxLength={300}
+              maxLength={1200}
               returnKeyType="send"
-              onSubmitEditing={() => sendMessage()}
+              onSubmitEditing={() => sendMessage(undefined)}
               blurOnSubmit={false}
             />
           </View>
-          <SendButton onPress={() => sendMessage()} disabled={!input.trim()} />
+          <SendButton onPress={() => sendMessage(undefined)} disabled={!input.trim()} />
         </View>
       </KeyboardAvoidingView>
     </View>
   );
-}
-
-// ─── AI Reply Stub ────────────────────────────────────────────────────────────
-function getAiReply(text, lang) {
-  const lower = text.toLowerCase();
-  const langNote = lang !== "English" ? `\n\n_(I can explain this in ${lang} too — just ask!)_` : "";
-
-  if (lower.includes("simplif"))
-    return `Of course! 😊\n\nThink of a plant like a tiny kitchen. It uses sunlight as the stove, water and air as ingredients, and makes sugar as food — and gives out oxygen as a bonus!${langNote}`;
-  if (lower.includes("explain again") || lower.includes("explain that"))
-    return `No problem! Let me break it down again 🔄\n\nPlants make food from sunlight, water, and CO₂ inside their leaves. The green colour comes from chlorophyll, which captures the light energy.${langNote}`;
-  if (lower.includes("example"))
-    return `Great! Here's a real-life example 🌻\n\nA sunflower turns toward the sun throughout the day — that's it maximising sunlight absorption for photosynthesis!${langNote}`;
-  return `That's a great question! 🌟\n\nI'm working through the answer. Keep asking — curiosity is the best teacher!${langNote}`;
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────

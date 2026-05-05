@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
@@ -16,6 +17,8 @@ import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { radius } from '../../theme/radius';
 import { shadows } from '../../theme/shadows';
+import useAuthStore from '../../store/useAuthStore';
+import { navigationRef } from '../../navigation/navigationRef';
 
 export default function SignUpScreen({ navigation }) {
   const [form, setForm] = useState({
@@ -25,6 +28,7 @@ export default function SignUpScreen({ navigation }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [errors, setErrors]           = useState({});
   const [agreed, setAgreed]           = useState(false);
+  const [loading, setLoading]        = useState(false);
 
   const set = (key) => (val) => {
     setForm(p => ({ ...p, [key]: val }));
@@ -38,14 +42,37 @@ export default function SignUpScreen({ navigation }) {
     else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = 'Enter a valid email';
     if (!form.password)       e.password = 'Password is required';
     else if (form.password.length < 8) e.password = 'Minimum 8 characters';
+    else if (!/[A-Z]/.test(form.password))
+      e.password = 'Include one uppercase letter';
+    else if (!/[0-9]/.test(form.password))
+      e.password = 'Include one number';
+    else if (!/[^A-Za-z0-9]/.test(form.password))
+      e.password = 'Include one special character';
     if (form.confirm !== form.password) e.confirm = 'Passwords do not match';
     if (!agreed)              e.terms = 'Please accept the terms';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSignUp = () => {
-    if (validate()) navigation.navigate('ProfileSetup');
+  const handleSignUp = async () => {
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      await useAuthStore.getState().signup({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        password: form.password,
+        preferredLanguage: 'en',
+        educationLevel: 'beginner'
+      });
+      if (navigationRef.isReady()) {
+        navigationRef.reset({ index: 0, routes: [{ name: 'ProfileSetup' }] });
+      }
+    } catch (err) {
+      Alert.alert('Sign up failed', err.message || 'Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -180,6 +207,8 @@ export default function SignUpScreen({ navigation }) {
                 variant="primary"
                 fullWidth
                 onPress={handleSignUp}
+                loading={loading}
+                disabled={loading}
               />
             </View>
           </View>

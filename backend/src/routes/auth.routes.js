@@ -1,8 +1,9 @@
 const express = require("express");
 const { body } = require("express-validator");
-const { signup, login, refresh, logout } = require("../controllers/auth.controller");
+const { signup, login, refresh, logout, getMe, updateMe } = require("../controllers/auth.controller");
 const validateRequest = require("../middleware/validate.middleware");
 const { authLimiter } = require("../middleware/rateLimit.middleware");
+const authMiddleware = require("../middleware/auth.middleware");
 
 const router = express.Router();
 
@@ -43,5 +44,19 @@ router.post(
 );
 
 router.post("/logout", logout);
+
+router.get("/me", authMiddleware, getMe);
+
+router.patch(
+  "/me",
+  authMiddleware,
+  [
+    body("name").optional().isString().trim().isLength({ min: 2, max: 80 }),
+    body("preferredLanguage").optional().isIn(["en", "kn"]),
+    body("educationLevel").optional().isIn(["beginner", "intermediate", "advanced"])
+  ],
+  validateRequest,
+  updateMe
+);
 
 module.exports = router;

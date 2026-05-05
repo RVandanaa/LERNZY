@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Image,
+  Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
 import { InputField } from '../../components/InputField';
@@ -17,12 +18,16 @@ import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { radius } from '../../theme/radius';
 import { shadows } from '../../theme/shadows';
+import useAuthStore from '../../store/useAuthStore';
+import { ONBOARDING_COMPLETE_KEY } from '../../constants/onboarding';
+import { navigationRef } from '../../navigation/navigationRef';
 
 export default function SignInScreen({ navigation }) {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [errors, setErrors]     = useState({});
+  const [loading, setLoading]   = useState(false);
 
   const validate = () => {
     const e = {};
@@ -32,8 +37,23 @@ export default function SignInScreen({ navigation }) {
     return Object.keys(e).length === 0;
   };
 
-  const handleSignIn = () => {
-    if (validate()) navigation.navigate('ProfileSetup');
+  const handleSignIn = async () => {
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      await useAuthStore.getState().login(email.trim(), password);
+      const onboarded = await AsyncStorage.getItem(ONBOARDING_COMPLETE_KEY);
+      if (navigationRef.isReady()) {
+        navigationRef.reset({
+          index: 0,
+          routes: [{ name: onboarded === 'true' ? 'MainApp' : 'ProfileSetup' }],
+        });
+      }
+    } catch (err) {
+      Alert.alert('Sign in failed', err.message || 'Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -103,6 +123,8 @@ export default function SignInScreen({ navigation }) {
               variant="primary"
               fullWidth
               onPress={handleSignIn}
+              loading={loading}
+              disabled={loading}
             />
 
             {/* Divider */}

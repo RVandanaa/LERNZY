@@ -10,7 +10,9 @@ import {
   Modal,
   FlatList,
   Pressable,
+  Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button }     from '../../components/Button';
 import { InputField } from '../../components/InputField';
@@ -21,6 +23,9 @@ import { spacing }    from '../../theme/spacing';
 import { radius }     from '../../theme/radius';
 import { shadows }    from '../../theme/shadows';
 import useProfileStore from '../../store/useProfileStore';
+import useAuthStore from '../../store/useAuthStore';
+import { ONBOARDING_COMPLETE_KEY } from '../../constants/onboarding';
+import { gradeToEducationLevel, profileLanguageToApi } from '../../utils/languageMap';
 
 // ─── Data ─────────────────────────────────────────────────
 
@@ -77,6 +82,7 @@ export default function ProfileSetupScreen({ navigation }) {
   const [step, setStep]             = useState(0);
   const [gradeModal, setGradeModal] = useState(false);
   const [nameError, setNameError]   = useState('');
+  const [saving, setSaving]         = useState(false);
 
   const {
     name, avatar, grade, language, interests,
@@ -92,16 +98,42 @@ export default function ProfileSetupScreen({ navigation }) {
     return true;
   }, [step, avatar, name, grade, language, interests]);
 
-  const handleNext = () => {
+  const finalizeOnboarding = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await useAuthStore.getState().patchProfile({
+        name: name.trim(),
+        preferredLanguage: profileLanguageToApi(language),
+        educationLevel: gradeToEducationLevel(grade)
+      });
+      await AsyncStorage.setItem(ONBOARDING_COMPLETE_KEY, 'true');
+      navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
+    } catch (err) {
+      Alert.alert(
+        'Could not save profile',
+        err?.message || 'Check your internet connection and try again.'
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleNext = async () => {
     if (step === 1 && !name.trim()) {
       setNameError('Please enter your name');
       return;
     }
     if (step < STEPS.length - 1) {
       setStep(s => s + 1);
-    } else {
-      navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
+      return;
     }
+
+    if (!canAdvance()) {
+      return;
+    }
+
+    await finalizeOnboarding();
   };
 
   const handleBack = () => {
@@ -210,7 +242,8 @@ export default function ProfileSetupScreen({ navigation }) {
             variant={canAdvance() ? 'primary' : 'secondary'}
             fullWidth
             onPress={handleNext}
-            disabled={!canAdvance()}
+            disabled={!canAdvance() || saving}
+            loading={saving}
           />
         </View>
       </KeyboardAvoidingView>

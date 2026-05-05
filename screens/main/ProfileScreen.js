@@ -10,6 +10,9 @@ import {
   StatusBar,
   Alert,
 } from "react-native";
+import useAuthStore from "../../store/useAuthStore";
+import useProfileStore from "../../store/useProfileStore";
+import { resetToAuth } from "../../services/navigation/resetToAuth";
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 const T = {
@@ -200,6 +203,14 @@ function DownloadItem({ item, onDelete, isLast }) {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
+  const authUser = useAuthStore((s) => s.user);
+  const profileName = useProfileStore((s) => s.name);
+  const profileGrade = useProfileStore((s) => s.grade);
+  const displayName = (profileName && profileName.trim()) || authUser?.name || "Learner";
+  const gradeLine = profileGrade
+    ? `Class ${profileGrade} · synced`
+    : "Complete profile setup";
+
   const [activeLang, setActiveLang] = useState("en");
   const [fontSize, setFontSize]     = useState("md");
   const [settings, setSettings]     = useState({
@@ -247,7 +258,14 @@ export default function ProfileScreen() {
       "You'll need to sign in again to access your learning.",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Log out", style: "destructive", onPress: () => {} },
+        {
+          text: "Log out",
+          style: "destructive",
+          onPress: async () => {
+            await useAuthStore.getState().logout();
+            resetToAuth();
+          },
+        },
       ]
     );
 
@@ -269,8 +287,8 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          <Text style={styles.heroName}>{USER.name}</Text>
-          <Text style={styles.heroGrade}>{USER.grade}</Text>
+          <Text style={styles.heroName}>{displayName}</Text>
+          <Text style={styles.heroGrade}>{gradeLine}</Text>
           <Text style={styles.heroSchool}>{USER.school}</Text>
 
           {/* XP / Streak / Rank row */}

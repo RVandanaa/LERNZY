@@ -186,9 +186,59 @@ const logout = async (req, res, next) => {
   }
 };
 
+const serializeUser = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  preferredLanguage: user.preferredLanguage,
+  educationLevel: user.educationLevel
+});
+
+const getMe = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return errorResponse(res, "User not found", 404, { code: "USER_MISSING" }, null);
+    }
+
+    return successResponse(res, { user: serializeUser(user) });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const updateMe = async (req, res, next) => {
+  try {
+    const { name, preferredLanguage, educationLevel } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return errorResponse(res, "User not found", 404, { code: "USER_MISSING" }, null);
+    }
+
+    if (typeof name === "string" && name.trim().length >= 2) {
+      user.name = name.trim();
+    }
+    if (preferredLanguage) {
+      user.preferredLanguage = preferredLanguage;
+    }
+    if (educationLevel) {
+      user.educationLevel = educationLevel;
+    }
+
+    await user.save();
+
+    return successResponse(res, { user: serializeUser(user) }, "Profile updated");
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   signup,
   login,
   refresh,
-  logout
+  logout,
+  getMe,
+  updateMe
 };
