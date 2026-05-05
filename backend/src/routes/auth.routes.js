@@ -22,6 +22,7 @@ const strongPasswordRules = [
 
 router.post(
   "/signup",
+  authLimiter,
   [
     body("name").isString().trim().isLength({ min: 2, max: 80 }),
     body("email").isEmail().normalizeEmail(),
@@ -43,7 +44,7 @@ router.post(
   refresh
 );
 
-router.post("/logout", logout);
+router.post("/logout", authLimiter, authMiddleware, logout);
 
 router.get("/me", authMiddleware, getMe);
 

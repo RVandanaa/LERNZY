@@ -1,5 +1,5 @@
 const User = require("../models/User.model");
-const { signAccessToken, signRefreshToken, verifyRefreshToken, verifyAccessToken } = require("../utils/jwt.utils");
+const { signAccessToken, signRefreshToken, verifyRefreshToken } = require("../utils/jwt.utils");
 const { hashToken } = require("../utils/crypto.utils");
 const { successResponse, errorResponse } = require("../utils/response.utils");
 const logger = require("../utils/logger");
@@ -152,33 +152,14 @@ const refresh = async (req, res, next) => {
 
 const logout = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization || "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
-
-    if (!token) {
-      return errorResponse(res, "Missing bearer token", 401, { code: "TOKEN_MISSING" }, null);
-    }
-
-    let decoded;
-
-    try {
-      decoded = verifyAccessToken(token);
-    } catch (error) {
-      return errorResponse(res, "Invalid token", 401, { code: "TOKEN_INVALID" }, null);
-    }
-
-    if (decoded.typ && decoded.typ !== "access") {
-      return errorResponse(res, "Invalid token type", 401, { code: "TOKEN_INVALID_TYPE" }, null);
-    }
-
-    const user = await User.findById(decoded.userId || decoded.sub).select("+refreshTokenHash");
+    const user = await User.findById(req.user._id).select("+refreshTokenHash");
     if (user) {
       user.refreshTokenHash = undefined;
       user.refreshTokenVersion = (user.refreshTokenVersion || 0) + 1;
       await user.save();
     }
 
-    logger.info("user_logged_out", { userId: decoded.userId?.toString?.() });
+    logger.info("user_logged_out", { userId: req.user._id.toString() });
 
     return successResponse(res, null, "Logged out");
   } catch (error) {

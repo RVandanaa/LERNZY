@@ -128,3 +128,97 @@ export async function authFetch(path, options = {}) {
 export async function askTutor(body) {
   return authFetch("/ask", { method: "POST", body });
 }
+
+function parseSseEvents(chunk, carry = "") {
+  const merged = `${carry}${chunk}`;
+  const frames = merged.split("\n\n");
+  const nextCarry = frames.pop() || "";
+  const events = [];
+
+  for (const frame of frames) {
+    const lines = frame.split("\n");
+    let event = "message";
+    let data = "";
+
+    for (const rawLine of lines) {
+      const line = rawLine.trimEnd();
+      if (line.startsWith("event:")) {
+        event = line.slice("event:".length).trim();
+      } else if (line.startsWith("data:")) {
+        data += line.slice("data:".length).trim();
+      }
+    }
+
+    if (!data) continue;
+    try {
+      events.push({ event, payload: JSON.parse(data) });
+    } catch {
+      // Ignore malformed SSE payloads.
+    }
+  }
+
+  return { events, carry: nextCarry };
+}
+
+export async function askTutorStream(body, handlers = {}) {
+  const { onToken, onDone } = handlers;
+
+  const store = getStoreState();
+  const accessToken = store.accessToken;
+  if (!accessToken) {
+    throw new ApiError("Not authenticated", 401, "TOKEN_MISSING");
+  }
+
+  const res = await fetch(`${API_BASE_URL}/ask/stream`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "text/event-stream"
+    },
+    body: JSON.stringify(body ?? {})
+  });
+
+  if (!res.ok) {
+    const json = await parseJsonResponse(res);
+    const msg =
+      json.message ||
+      json.errors?.map((e) => e.message || e.msg).join(", ") ||
+      "Stream request failed";
+    throw new ApiError(msg, res.status, json.error?.code);
+  }
+
+  if (!res.body || typeof res.body.getReader !== "function") {
+    throw new ApiError("Streaming unsupported on this runtime", 0, "STREAM_UNSUPPORTED");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let carry = "";
+  let donePayload = null;
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    const text = decoder.decode(value, { stream: true });
+    const parsed = parseSseEvents(text, carry);
+    carry = parsed.carry;
+
+    for (const item of parsed.events) {
+      if (item.event === "token") {
+        if (typeof onToken === "function") {
+          onToken(item.payload?.token || "");
+        }
+      } else if (item.event === "done") {
+        donePayload = item.payload || null;
+        if (typeof onDone === "function") {
+          onDone(donePayload);
+        }
+      } else if (item.event === "error") {
+        throw new ApiError(item.payload?.message || "Stream failed", 500, "STREAM_ERROR");
+      }
+    }
+  }
+
+  return donePayload || {};
+}

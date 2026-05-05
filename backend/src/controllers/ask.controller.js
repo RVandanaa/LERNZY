@@ -32,20 +32,31 @@ const askQuestion = async (req, res, next) => {
       language: normalizedLanguage
     });
 
-    const finalText = await maybeTranslate({
+    // Run post-processing concurrently to reduce end-to-end latency.
+    const translationPromise = maybeTranslate({
       text: aiResult.text,
       language: normalizedLanguage
     });
+    const ttsPromise =
+      outputType === "voice"
+        ? createSpeechPayload({
+            text: aiResult.text,
+            language: normalizedLanguage
+          })
+        : Promise.resolve(null);
+    const signLanguagePromise =
+      outputType === "sign-language"
+        ? translationPromise.then((translatedText) =>
+          toGesturePayload({
+            text: translatedText,
+            language: normalizedLanguage
+          }))
+        : Promise.resolve(null);
 
-    const [tts, signLanguage] = await Promise.all([
-      Promise.resolve(outputType === "voice" ? createSpeechPayload({
-        text: finalText,
-        language: normalizedLanguage
-      }) : null),
-      Promise.resolve(outputType === "sign-language" ? toGesturePayload({
-        text: finalText,
-        language: normalizedLanguage
-      }) : null)
+    const [finalText, tts, signLanguage] = await Promise.all([
+      translationPromise,
+      ttsPromise,
+      signLanguagePromise
     ]);
 
     const responsePayload = {

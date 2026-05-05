@@ -34,6 +34,7 @@ npm run dev
 Health check:
 
 - `GET /api/health`
+- `GET /api/health/ready` (DB/Redis readiness)
 
 ## Environment
 
@@ -102,6 +103,17 @@ Requires `Authorization: Bearer <accessToken>`.
 ### History (paginated)
 
 `GET /api/history?page=1&limit=20`
+
+Cursor mode:
+
+- `GET /api/history?cursor=<lastItemId>&limit=20`
+- Returns `pagination.nextCursor` for efficient infinite scrolling.
+
+### Voice (TTS)
+
+- Set `TTS_PROVIDER=elevenlabs` + `ELEVENLABS_API_KEY` + voice id(s) in `.env`.
+- OR set `TTS_PROVIDER=aws-polly` + AWS credentials/region.
+- Voice responses return `tts.audioUrl` as a playable URL (`data:` URL for inline playback, size-gated).
 
 ## Tests
 

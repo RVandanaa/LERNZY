@@ -2,6 +2,7 @@ require("dotenv").config({ override: true });
 
 const app = require("./app");
 const connectDatabase = require("./config/database");
+const { validateEnvironment } = require("./config/env");
 const { initRedis } = require("./services/cache.service");
 const logger = require("./utils/logger");
 
@@ -9,6 +10,7 @@ const PORT = Number(process.env.PORT || 5000);
 
 const startServer = async () => {
   try {
+    validateEnvironment();
     await connectDatabase();
     await initRedis();
 

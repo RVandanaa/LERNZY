@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
+const mongoose = require("mongoose");
 
 const authRoutes = require("./routes/auth.routes");
 const askRoutes = require("./routes/ask.routes");
@@ -10,6 +11,7 @@ const errorHandler = require("./middleware/error.middleware");
 const sanitizeRequest = require("./middleware/sanitize.middleware");
 const { globalLimiter } = require("./middleware/rateLimit.middleware");
 const { parseAllowedOrigins } = require("./utils/cors.utils");
+const { getRedisStatus } = require("./services/cache.service");
 const logger = require("./utils/logger");
 
 const app = express();
@@ -24,8 +26,21 @@ app.use(
 
 app.use(
   cors({
-    origin: allowedOrigins,
-    credentials: allowedOrigins !== "*"
+    origin(origin, callback) {
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (Array.isArray(allowedOrigins) && allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      const corsError = new Error("CORS origin denied");
+      corsError.statusCode = 403;
+      corsError.code = "CORS_DENIED";
+      return callback(corsError);
+    },
+    credentials: true
   })
 );
 
@@ -50,6 +65,25 @@ app.get("/api/health", (req, res) => {
     message: "AI Tutor backend is healthy",
     data: null,
     error: null
+  });
+});
+
+app.get("/api/health/ready", (req, res) => {
+  const mongoReady = mongoose.connection.readyState === 1;
+  const redisStatus = getRedisStatus();
+  const redisReady = redisStatus === "ready" || redisStatus === "connect" || redisStatus === "disabled";
+  const ready = mongoReady && redisReady;
+
+  return res.status(ready ? 200 : 503).json({
+    success: ready,
+    message: ready ? "Backend is ready" : "Backend is not ready",
+    data: {
+      services: {
+        mongo: mongoReady ? "ready" : "not_ready",
+        redis: redisStatus
+      }
+    },
+    error: ready ? null : { code: "SERVICE_NOT_READY" }
   });
 });
 

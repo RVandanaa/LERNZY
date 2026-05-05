@@ -24,6 +24,14 @@ const initRedis = async () => {
 
 const getRedis = () => redisClient;
 
+const getRedisStatus = () => {
+  if (!redisClient) {
+    return "disabled";
+  }
+
+  return redisClient.status || "unknown";
+};
+
 const buildAskCacheKey = ({ question, language, level, outputType }) => {
   const payload = JSON.stringify({
     question: question.trim().toLowerCase(),
@@ -67,6 +75,7 @@ const cacheSetJSON = async (key, value, ttlSeconds) => {
 module.exports = {
   initRedis,
   getRedis,
+  getRedisStatus,
   buildAskCacheKey,
   cacheGetJSON,
   cacheSetJSON

@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import useProfileStore from "../../store/useProfileStore";
 import { profileLanguageToApi } from "../../utils/languageMap";
-import { askTutor, ApiError } from "../../services/api/http";
+import { askTutor, askTutorStream, ApiError } from "../../services/api/http";
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 const T = {
@@ -219,34 +219,92 @@ export default function AiTutorChatScreen() {
     scrollToBottom();
 
     const apiLang = profileLanguageToApi(language);
-    askTutor({
-      question: trimmed,
-      language: apiLang,
-      outputType: "text",
-    })
-      .then((data) => {
-        const reply = data?.explanation || "_(No text returned)_";
-        const aiMsg = {
-          id:   String(nextId.current++),
+    const streamMessageId = String(nextId.current++);
+    let receivedToken = false;
+
+    const streamStart = async () => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: streamMessageId,
           role: "ai",
-          text: reply,
+          text: "",
           time: now(),
-        };
-        setMessages((prev) => [...prev, aiMsg]);
-      })
-      .catch((err) => {
-        const msg = err instanceof ApiError ? err.message : "Something went wrong";
-        Alert.alert("Tutor unavailable", msg);
-        const aiMsg = {
-          id:   String(nextId.current++),
-          role: "ai",
-          text:
-            apiLang === "kn"
-              ? `ಕ್ಷಮಿಸಿ, ಈಗ ಉತ್ತರ ಪಡೆಯಲಾಗಲಿಲ್ಲ। (${msg})`
-              : `Sorry — I couldn't reach the tutor right now.\n(${msg})`,
-          time: now(),
-        };
-        setMessages((prev) => [...prev, aiMsg]);
+        },
+      ]);
+
+      const donePayload = await askTutorStream(
+        {
+          question: trimmed,
+          language: apiLang,
+          outputType: "text",
+        },
+        {
+          onToken: (token) => {
+            if (!token) return;
+            receivedToken = true;
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === streamMessageId
+                  ? { ...msg, text: `${msg.text || ""}${token}` }
+                  : msg
+              )
+            );
+          },
+          onDone: (payload) => {
+            const finalText = payload?.explanation || payload?.explanationStream;
+            if (!finalText) return;
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === streamMessageId ? { ...msg, text: finalText } : msg
+              )
+            );
+          },
+        }
+      );
+
+      if (!receivedToken && donePayload?.explanation) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === streamMessageId
+              ? { ...msg, text: donePayload.explanation }
+              : msg
+          )
+        );
+      }
+    };
+
+    streamStart()
+      .catch(async () => {
+        try {
+          const data = await askTutor({
+            question: trimmed,
+            language: apiLang,
+            outputType: "text",
+          });
+          const reply = data?.explanation || "_(No text returned)_";
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === streamMessageId ? { ...msg, text: reply } : msg
+            )
+          );
+        } catch (err) {
+          const msg = err instanceof ApiError ? err.message : "Something went wrong";
+          Alert.alert("Tutor unavailable", msg);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === streamMessageId
+                ? {
+                    ...m,
+                    text:
+                      apiLang === "kn"
+                        ? `ಕ್ಷಮಿಸಿ, ಈಗ ಉತ್ತರ ಪಡೆಯಲಾಗಲಿಲ್ಲ। (${msg})`
+                        : `Sorry — I couldn't reach the tutor right now.\n(${msg})`,
+                  }
+                : m
+            )
+          );
+        }
       })
       .finally(() => {
         setIsTyping(false);
