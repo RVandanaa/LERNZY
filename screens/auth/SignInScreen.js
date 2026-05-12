@@ -20,8 +20,6 @@ import { radius } from '../../theme/radius';
 import { shadows } from '../../theme/shadows';
 import useAuthStore from '../../store/useAuthStore';
 import { ONBOARDING_COMPLETE_KEY } from '../../constants/onboarding';
-import { navigationRef } from '../../navigation/navigationRef';
-
 export default function SignInScreen({ navigation }) {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
@@ -43,12 +41,10 @@ export default function SignInScreen({ navigation }) {
     try {
       await useAuthStore.getState().login(email.trim(), password);
       const onboarded = await AsyncStorage.getItem(ONBOARDING_COMPLETE_KEY);
-      if (navigationRef.isReady()) {
-        navigationRef.reset({
-          index: 0,
-          routes: [{ name: onboarded === 'true' ? 'MainApp' : 'ProfileSetup' }],
-        });
-      }
+      navigation.reset({
+        index: 0,
+        routes: [{ name: onboarded === 'true' ? 'MainApp' : 'ProfileSetup' }],
+      });
     } catch (err) {
       Alert.alert('Sign in failed', err.message || 'Please check your credentials.');
     } finally {

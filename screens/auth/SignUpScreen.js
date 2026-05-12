@@ -18,7 +18,6 @@ import { spacing } from '../../theme/spacing';
 import { radius } from '../../theme/radius';
 import { shadows } from '../../theme/shadows';
 import useAuthStore from '../../store/useAuthStore';
-import { navigationRef } from '../../navigation/navigationRef';
 
 export default function SignUpScreen({ navigation }) {
   const [form, setForm] = useState({
@@ -65,9 +64,7 @@ export default function SignUpScreen({ navigation }) {
         preferredLanguage: 'en',
         educationLevel: 'beginner'
       });
-      if (navigationRef.isReady()) {
-        navigationRef.reset({ index: 0, routes: [{ name: 'ProfileSetup' }] });
-      }
+      navigation.reset({ index: 0, routes: [{ name: 'ProfileSetup' }] });
     } catch (err) {
       Alert.alert('Sign up failed', err.message || 'Please try again.');
     } finally {
