@@ -53,7 +53,10 @@ export default function SignInScreen({ navigation }) {
       });
     } catch (err) {
       const title = 'Sign In Failed';
-      const message = err.message || 'Please check your credentials and try again.';
+      const message =
+        err.message === 'Network request failed'
+          ? 'Unable to reach the backend server. Make sure the backend is running and your device/emulator can reach it.'
+          : err.message || 'Please check your credentials and try again.';
       Alert.alert(title, message, [
         { text: 'Try Again', style: 'default' },
         { text: 'Cancel', style: 'cancel' }
