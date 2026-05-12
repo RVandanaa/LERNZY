@@ -30,8 +30,14 @@ export default function SignInScreen({ navigation }) {
   const validate = () => {
     const e = {};
     if (!email.trim())    e.email    = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(email)) e.email = 'Enter a valid email address';
     if (!password.trim()) e.password = 'Password is required';
     setErrors(e);
+    
+    if (Object.keys(e).length > 0) {
+      const errorMsg = Object.values(e).join('\n');
+      Alert.alert('Validation Error', errorMsg);
+    }
     return Object.keys(e).length === 0;
   };
 
@@ -46,7 +52,12 @@ export default function SignInScreen({ navigation }) {
         routes: [{ name: onboarded === 'true' ? 'MainApp' : 'ProfileSetup' }],
       });
     } catch (err) {
-      Alert.alert('Sign in failed', err.message || 'Please check your credentials.');
+      const title = 'Sign In Failed';
+      const message = err.message || 'Please check your credentials and try again.';
+      Alert.alert(title, message, [
+        { text: 'Try Again', style: 'default' },
+        { text: 'Cancel', style: 'cancel' }
+      ]);
     } finally {
       setLoading(false);
     }

@@ -50,6 +50,11 @@ export default function SignUpScreen({ navigation }) {
     if (form.confirm !== form.password) e.confirm = 'Passwords do not match';
     if (!agreed)              e.terms = 'Please accept the terms';
     setErrors(e);
+    
+    if (Object.keys(e).length > 0) {
+      const errorMsg = Object.values(e).join('\n');
+      Alert.alert('Validation Error', errorMsg);
+    }
     return Object.keys(e).length === 0;
   };
 
@@ -66,7 +71,12 @@ export default function SignUpScreen({ navigation }) {
       });
       navigation.reset({ index: 0, routes: [{ name: 'ProfileSetup' }] });
     } catch (err) {
-      Alert.alert('Sign up failed', err.message || 'Please try again.');
+      const title = 'Sign Up Failed';
+      const message = err.message || 'Please check your information and try again.';
+      Alert.alert(title, message, [
+        { text: 'Try Again', style: 'default' },
+        { text: 'Cancel', style: 'cancel' }
+      ]);
     } finally {
       setLoading(false);
     }
