@@ -8,6 +8,34 @@ export class ApiError extends Error {
   }
 }
 
+/** User-facing copy for transient and server failures */
+export function friendlyApiMessage(status, serverMessage) {
+  if (!status || status === 0) {
+    return "Could not reach the server. Check your connection and try again.";
+  }
+  if (status >= 500) {
+    return "Our servers are having trouble. Please try again in a moment.";
+  }
+  return serverMessage || "Something went wrong.";
+}
+
+async function clearSessionAndNavigateToAuth() {
+  try {
+    const store = getStoreState();
+    if (typeof store.clearSession === "function") {
+      await store.clearSession();
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    const { resetToAuth } = require("../navigation/resetToAuth");
+    resetToAuth();
+  } catch {
+    // navigation may not be mounted yet
+  }
+}
+
 async function parseJsonResponse(res) {
   const text = await res.text();
   try {
@@ -72,10 +100,11 @@ export async function publicPost(path, body) {
   const json = await parseJsonResponse(res);
 
   if (!res.ok || json.success === false) {
-    const msg =
+    const raw =
       json.message ||
       json.errors?.map((e) => e.message || e.msg).join(", ") ||
       "Request failed";
+    const msg = friendlyApiMessage(res.status, raw);
     throw new ApiError(msg, res.status, json.error?.code);
   }
 
@@ -115,10 +144,17 @@ export async function authFetch(path, options = {}) {
   }
 
   if (!res.ok || json.success === false) {
-    const msg =
+    if (res.status === 401) {
+      await clearSessionAndNavigateToAuth();
+    }
+    const raw =
       json.message ||
       json.errors?.map((e) => e.message || e.msg).join(", ") ||
       "Request failed";
+    const msg =
+      res.status === 401
+        ? raw || "Your session expired. Please sign in again."
+        : friendlyApiMessage(res.status, raw);
     throw new ApiError(msg, res.status, json.error?.code);
   }
 
@@ -181,10 +217,17 @@ export async function askTutorStream(body, handlers = {}) {
 
   if (!res.ok) {
     const json = await parseJsonResponse(res);
-    const msg =
+    if (res.status === 401) {
+      await clearSessionAndNavigateToAuth();
+    }
+    const raw =
       json.message ||
       json.errors?.map((e) => e.message || e.msg).join(", ") ||
       "Stream request failed";
+    const msg =
+      res.status === 401
+        ? raw || "Your session expired. Please sign in again."
+        : friendlyApiMessage(res.status, raw);
     throw new ApiError(msg, res.status, json.error?.code);
   }
 
