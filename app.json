@@ -30,7 +30,7 @@
       "expo-font"
     ],
     "extra": {
-      "apiBaseUrl": ""
+      "apiBaseUrl": "http://172.20.10.9:5001/api"
     }
   }
 }
