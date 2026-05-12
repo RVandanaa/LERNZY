@@ -102,7 +102,7 @@ export async function publicPost(path, body) {
   if (!res.ok || json.success === false) {
     const raw =
       json.message ||
-      json.errors?.map((e) => e.message || e.msg).join(", ") ||
+      (Array.isArray(json.errors) ? json.errors.map((e) => e.message || e.msg || e).join(", ") : json.errors) ||
       "Request failed";
     const msg = friendlyApiMessage(res.status, raw);
     throw new ApiError(msg, res.status, json.error?.code);

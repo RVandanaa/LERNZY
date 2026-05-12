@@ -79,19 +79,33 @@ const useAuthStore = create((set, get) => ({
   },
 
   login: async (email, password) => {
-    const data = await publicPost("/auth/login", { email, password });
-    await get().setSessionFromAuthPayload(data);
+    try {
+      const data = await publicPost("/auth/login", { email, password });
+      if (!data || !data.accessToken) {
+        throw new Error("Invalid response: missing access token");
+      }
+      await get().setSessionFromAuthPayload(data);
+    } catch (error) {
+      throw error;
+    }
   },
 
   signup: async ({ name, email, password, preferredLanguage, educationLevel }) => {
-    const data = await publicPost("/auth/signup", {
-      name,
-      email,
-      password,
-      preferredLanguage,
-      educationLevel
-    });
-    await get().setSessionFromAuthPayload(data);
+    try {
+      const data = await publicPost("/auth/signup", {
+        name,
+        email,
+        password,
+        preferredLanguage,
+        educationLevel
+      });
+      if (!data || !data.accessToken) {
+        throw new Error("Invalid response: missing access token");
+      }
+      await get().setSessionFromAuthPayload(data);
+    } catch (error) {
+      throw error;
+    }
   },
 
   patchProfile: async (body) => {

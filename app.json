@@ -29,8 +29,12 @@
     "plugins": [
       "expo-font"
     ],
-    "extra": {
-      "apiBaseUrl": ""
+    "extra": [
+      {
+        "apiBaseUrl": ""
+      }
+    ]
+    
     }
-  }
 }
+
